@@ -1,0 +1,126 @@
+---
+title: "Mini-Project 02"
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+    toc_float: true
+---
+
+# Data Visualization Project 02
+
+_revised version of mini-project 02 goes here_
+
+# Filtering and Summarizing
+
+Including tidyverse, sf, and plotly libraries.  Assigning dataset, and adjusting column names for ease of creating plots later. 
+```{r}
+library(tidyverse)
+library(sf)
+library(plotly)
+
+housing_data <- read_csv("https://raw.githubusercontent.com/reisanar/datasets/master/WestRoxbury.csv")
+names(housing_data) <- make.names(names(housing_data), unique=TRUE)
+housing_data
+
+```
+
+Assigning florida lakes shapefile data.
+```{r}
+florida_lakes <- read_sf("data/Florida_Lakes/Florida_Lakes.shp")
+florida_lakes
+```
+
+Assigning florida state boundary shapfile.  [Data source.](https://hub.arcgis.com/datasets/fdot::detailed-florida-state-boundary/explore?location=27.506724%2C-82.293774%2C7.62)  
+```{r}
+florida_shape <- read_sf("data/Detailed_Florida_State_Boundary/Detailed_Florida_State_Boundary.shp")
+florida_shape
+```
+
+Filtering lakes dataset to only orange county for ease of handling and further exploration.  
+```{r}
+florida_lakes_orange = filter(florida_lakes, COUNTY %in% c("ORANGE"))
+florida_lakes_orange
+```
+
+Generating scatterplot to explore data and find outliers.  I used plotly to identify data points that were outliers.  
+```{r}
+perimeter_area <- ggplot(florida_lakes_orange, aes(x = PERIMETER, y = SHAPEAREA, text = NAME)) + geom_point() 
+ggplotly(perimeter_area, tooltip = "text")
+```
+
+Filtering outliers out of dataset
+```{r}
+florida_lakes_orange_outlierless = filter(florida_lakes_orange, !(NAME %in% c("Lake Apopka", "Johns Lake")))
+```
+
+Creating a model to compare lake perimeter to area.  
+```{r}
+perimeter_vs_area <- lm(PERIMETER ~ SHAPEAREA, data = florida_lakes_orange_outlierless)
+summary(perimeter_vs_area)
+library(broom)
+tidy(perimeter_vs_area)
+glance(perimeter_vs_area)
+```
+
+# Visualizing
+
+Creating an interactive plot to compare total value, gross area, and number of rooms for West Roxbury data.  
+```{r}
+housing_plot <- ggplot(housing_data, aes(x = GROSS.AREA, y = TOTAL.VALUE, color = as.factor(ROOMS))) + geom_point() + 
+  theme(plot.title.position = "plot") + 
+  labs(title = "Total Value of Homes vs Total Area",
+       subtitle = "for houses in the West Roxbury neighborhood", 
+       color = "Number of Rooms") + 
+  xlab("Total Area") + 
+  ylab("Total Value")
+ggplotly(housing_plot)
+```
+
+Creating an interactive map of the lakes of Florida, using the Florida Lakes shapefile data, and detailed state boundary shapfile data. 
+```{r}
+lake_plot <- ggplot() +
+  geom_sf(color = "#70DB92", fill = "#98F5B4", data = florida_shape) + theme(legend.position = "none") + theme_classic() + geom_sf(color = "#54A4F0", fill = "#498FD1", data = florida_lakes, aes(text = NAME)) + 
+  theme(plot.title.position = "plot") + 
+  labs(title = "Lakes in the State of Florida",
+       subtitle = "hover over each lake to see its name")
+ggplotly(lake_plot, tooltip = "text")
+```
+
+Creating a plot based on modeling perimeter vs area for lakes in Orange county.  
+```{r}
+perimeter_area_outlierless <- ggplot(florida_lakes_orange_outlierless, aes(x = PERIMETER, y = SHAPEAREA)) + geom_point() + geom_smooth(method = lm) + 
+  theme(plot.title.position = "plot") + 
+  labs(title = "Model of Perimeter vs Area of lakes in Orange County FL",
+       subtitle = "excluding Lake Apopka and Johns Lake") + 
+  xlab("Perimeter") + 
+  ylab("Area")
+ggplotly(perimeter_area_outlierless)
+```
+
+```{r}
+
+perimeter_area <- ggplot(florida_lakes, aes(x = PERIMETER, y = SHAPEAREA)) + geom_hex() + geom_smooth(method = lm) + 
+  theme(plot.title.position = "plot") + 
+  labs(title = "Model of Perimeter vs Area of lakes in Florida") + 
+  xlab("Perimeter") + 
+  ylab("Area") + 
+  ylim(0, 200000000) + 
+  xlim(0, 150000)
+ggplotly(perimeter_area)
+```
+
+```{r}
+lake_plot
+```
+
+
+# Analyzing
+
+Originally I was hoping to focus more on the Florida lakes data, and combine it with fish population data to create my visualizations, however I was not able to find any fish population data for lakes in Florida that would work to create the visualizations as I had originally intended.  Instead, I used the West Roxbury data for my first interactive plot, and had to settle on just creating an interactive map that displayed lake names for my shapefile plot.  There were not many steps involved in cleaning the data for this project. The only absolutely necessary step was to remove the spaces from the column names in the West Roxbury set so that I could create visualizations.  Other than that I filtered the lake data to make it more managable and more easily readable to create the scatterplot and model.  
+
+My first visualization could be used to tell a story about the leading factors that affect price for homes.  However, I think that my second two plots could be used well together to explore how lakes have formed in Florida, as well as some of the underlying geometric principles that dictate that.  The map plot would provide a good visual reference for exploring how lakes have formed in different regions of the state of Florida.  The linear model could be used to explain how to estimate the area of those lakes by only measuring their perimeter, which would be much easier to do than trying to actually measure the area of a body of water.  The main difficulty I ran into was in converting the column names in the West Roxbury dataset.  I think that I would further exploring the lake data by incorporating additional data as I previously discussed would be a great way to further explore that dataset.  
+
+I continued to focus on creating visualizations that are easy to read and approachable, as well as maintaining a clean style.  For the map I created I used Adobe Color to find complementary colors to represent the land and water area of Florida, as well as their outlines.  I tried to keep labels simple but informative, and minimize wasteful elements.  
+
+For this revised version, I kept most of this project the same, however I decided to expand my analysis of the perimeter - area model.  I included a version of the chart that includes the majority of the data, while showing a similar relationship as that of only orange county.  For this visualization I utilized a hex bin geometry as per the recommendation of Dr. Sanchez.  
